@@ -354,12 +354,12 @@ MonoBehaviour:
     Output: 1
   - Name: Developer
     UnlockCost: 10
-    UpgradeCost: 5
-    Output: 1
+    UpgradeCost: 50
+    Output: 10
   - Name: Manager
     UnlockCost: 50
-    UpgradeCost: 25
-    Output: 1
+    UpgradeCost: 250
+    Output: 20
   ResourcesSprites:
   - {fileID: 21300000, guid: e08866b1611397d479dd8af7452d8ff2, type: 3}
   - {fileID: 21300000, guid: 3d512d8be45e7914990e2bb052bc8519, type: 3}
@@ -371,7 +371,7 @@ MonoBehaviour:
   GoldInfo: {fileID: 1698174786}
   AutoCollectInfo: {fileID: 806539415}
   TapInfo: {fileID: 1340248403}
-  maxTap: 5
+  maxTap: 10
   bonusTap: 20
 --- !u!4 &503458195
 Transform:

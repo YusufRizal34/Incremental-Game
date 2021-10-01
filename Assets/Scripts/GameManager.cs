@@ -36,6 +36,7 @@ public class GameManager : MonoBehaviour
 
     private List<ResourceController> _activeResources = new List<ResourceController> ();
     private List<TapText> _tapTextPool = new List<TapText> ();
+    private List<TapText> _bonusTapTextPool = new List<TapText> ();
     private float _collectSecond;
     public int maxTap;
     public int bonusTap = 20;
@@ -156,7 +157,7 @@ public class GameManager : MonoBehaviour
         }
 
         if(TapCounter == 1){
-            output = bonusTap;
+            output += bonusTap;
             TapText tapText = GetOrCreateTapText (true);
             tapText.transform.SetParent (parent, false);
             tapText.transform.position = tapPosition;
@@ -188,21 +189,28 @@ public class GameManager : MonoBehaviour
 
     private TapText GetOrCreateTapText(bool isBonusTap)
     {
-        print(isBonusTap);
-        TapText tapText = _tapTextPool.Find (t => !t.gameObject.activeSelf);
+        TapText tapText = null;
+        if (isBonusTap)
+        {
+            tapText = _bonusTapTextPool.Find(t => !t.gameObject.activeSelf);
+        }
+        else
+        {
+            tapText = _tapTextPool.Find(t => !t.gameObject.activeSelf);
+        }
+ 
         if (tapText == null)
         {
             if(isBonusTap){
-                print("yey");
                 tapText = Instantiate (TapBonusTextPrefab).GetComponent<TapText> ();
-                // _tapTextPool.Add (tapText);
+                _bonusTapTextPool.Add (tapText);
             }
-            else{
+            else
+            {
                 tapText = Instantiate (TapTextPrefab).GetComponent<TapText> ();
-                // _tapTextPool.Add (tapText);
+                _tapTextPool.Add (tapText);
             }
         }
-
         return tapText;
     }
 }
