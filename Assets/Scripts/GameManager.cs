@@ -21,38 +21,37 @@ public class GameManager : MonoBehaviour
     // Fungsi [Range (min, max)] ialah menjaga value agar tetap berada di antara min dan max-nya
     [Range (0f, 1f)]
     public float AutoCollectPercentage = 0.1f;
+    public float SaveDelay = 5f;
     public ResourceConfig[] ResourcesConfigs;
     public Sprite[] ResourcesSprites;
 
     public Transform ResourcesParent;
     public ResourceController ResourcePrefab;
     public TapText TapTextPrefab;
-    public TapText TapBonusTextPrefab;
 
     public Transform CoinIcon;
     public Text GoldInfo;
     public Text AutoCollectInfo;
-    public Text TapInfo;
 
     private List<ResourceController> _activeResources = new List<ResourceController> ();
     private List<TapText> _tapTextPool = new List<TapText> ();
-    private List<TapText> _bonusTapTextPool = new List<TapText> ();
     private float _collectSecond;
-    public int maxTap;
-    public int bonusTap = 20;
-
-    public int TapCounter { get; private set; }
-    public double TotalGold { get; private set; }
+    private float _saveDelayCounter;
 
     private void Start ()
     {
         AddAllResources ();
+
+        GoldInfo.text = $"Gold: { UserDataManager.Progress.Gold.ToString ("0") }";
     }
 
     private void Update ()
     {
+        float deltaTime = Time.unscaledDeltaTime;
+        _saveDelayCounter -= deltaTime;
+
         // Fungsi untuk selalu mengeksekusi CollectPerSecond setiap detik
-        _collectSecond += Time.unscaledDeltaTime;
+        _collectSecond += deltaTime;
         if (_collectSecond >= 1f)
         {
             CollectPerSecond ();
@@ -60,7 +59,6 @@ public class GameManager : MonoBehaviour
         }
 
         CheckResourceCost ();
-        ResetBonus();
 
         CoinIcon.transform.localScale = Vector3.LerpUnclamped (CoinIcon.transform.localScale, Vector3.one * 2f, 0.15f);
         CoinIcon.transform.Rotate (0f, 0f, Time.deltaTime * -100f);
@@ -69,12 +67,13 @@ public class GameManager : MonoBehaviour
     private void AddAllResources ()
     {
         bool showResources = true;
+        int index = 0;
         foreach (ResourceConfig config in ResourcesConfigs)
         {
             GameObject obj = Instantiate (ResourcePrefab.gameObject, ResourcesParent, false);
             ResourceController resource = obj.GetComponent<ResourceController> ();
 
-            resource.SetConfig (config);
+            resource.SetConfig (index, config);
             obj.gameObject.SetActive (showResources);
 
             if (showResources && !resource.IsUnlocked)
@@ -83,6 +82,7 @@ public class GameManager : MonoBehaviour
             }
 
             _activeResources.Add (resource);
+            index++;
         }
     }
 
@@ -105,11 +105,11 @@ public class GameManager : MonoBehaviour
             bool isBuyable = false;
             if (resource.IsUnlocked)
             {
-                isBuyable = TotalGold >= resource.GetUpgradeCost ();
+                isBuyable = UserDataManager.Progress.Gold >= resource.GetUpgradeCost ();
             }
             else
             {
-                isBuyable = TotalGold >= resource.GetUnlockCost ();
+                isBuyable = UserDataManager.Progress.Gold >= resource.GetUnlockCost ();
             }
 
             resource.ResourceImage.sprite = ResourcesSprites[isBuyable ? 1 : 0];
@@ -136,13 +136,14 @@ public class GameManager : MonoBehaviour
 
     public void AddGold (double value)
     {
-        TotalGold += value;
-        GoldInfo.text = $"Gold: { TotalGold.ToString ("0") }";
-    }
+        UserDataManager.Progress.Gold += value;
+        GoldInfo.text = $"Gold: { UserDataManager.Progress.Gold.ToString ("0") }";
+        UserDataManager.Save (_saveDelayCounter < 0f);
 
-    public void AddTapCounter(){
-        TapCounter--;
-        TapInfo.text = $"Bonus Tap: { TapCounter.ToString ("0") }";
+        if (_saveDelayCounter < 0f)
+        {
+            _saveDelayCounter = SaveDelay;
+        }
     }
 
     public void CollectByTap (Vector3 tapPosition, Transform parent)
@@ -156,61 +157,26 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        if(TapCounter == 1){
-            output += bonusTap;
-            TapText tapText = GetOrCreateTapText (true);
-            tapText.transform.SetParent (parent, false);
-            tapText.transform.position = tapPosition;
+        TapText tapText = GetOrCreateTapText ();
+        tapText.transform.SetParent (parent, false);
+        tapText.transform.position = tapPosition;
 
-            tapText.Text.text = $"+{ bonusTap.ToString ("0") }";
-            tapText.gameObject.SetActive (true);
-            CoinIcon.transform.localScale = Vector3.one * 2f;
-        }
-        else{
-            TapText tapText = GetOrCreateTapText (false);
-            tapText.transform.SetParent (parent, false);
-            tapText.transform.position = tapPosition;
+        tapText.Text.text = $"+{ output.ToString ("0") }";
+        tapText.gameObject.SetActive (true);
+        CoinIcon.transform.localScale = Vector3.one * 1.75f;
 
-            tapText.Text.text = $"+{ output.ToString ("0") }";
-            tapText.gameObject.SetActive (true);
-            CoinIcon.transform.localScale = Vector3.one * 1.75f;
-        }
-
-        AddTapCounter();
         AddGold (output);
     }
 
-    public void ResetBonus(){
-        if(TapCounter == 0){
-            TapInfo.text = $"Bonus Tap: { TapCounter.ToString (maxTap.ToString()) }";
-            TapCounter += maxTap;
-        }
-    }
-
-    private TapText GetOrCreateTapText(bool isBonusTap)
+    private TapText GetOrCreateTapText ()
     {
-        TapText tapText = null;
-        if (isBonusTap)
-        {
-            tapText = _bonusTapTextPool.Find(t => !t.gameObject.activeSelf);
-        }
-        else
-        {
-            tapText = _tapTextPool.Find(t => !t.gameObject.activeSelf);
-        }
- 
+        TapText tapText = _tapTextPool.Find (t => !t.gameObject.activeSelf);
         if (tapText == null)
         {
-            if(isBonusTap){
-                tapText = Instantiate (TapBonusTextPrefab).GetComponent<TapText> ();
-                _bonusTapTextPool.Add (tapText);
-            }
-            else
-            {
-                tapText = Instantiate (TapTextPrefab).GetComponent<TapText> ();
-                _tapTextPool.Add (tapText);
-            }
+            tapText = Instantiate (TapTextPrefab).GetComponent<TapText> ();
+            _tapTextPool.Add (tapText);
         }
+
         return tapText;
     }
 }
